@@ -1,0 +1,144 @@
+
+#include <SPI.h>
+#include <WiFi.h>
+
+char ssid[] = "M48";
+char password[] = "48484848";
+
+WiFiServer server(80);
+float Temperature = 0.0;
+void setup() {
+  Serial.begin(9600);      
+  Serial.print("Attempting to connect to Network named: ");
+  Serial.println(ssid); 
+  WiFi.begin(ssid, password);
+  while ( WiFi.status() != WL_CONNECTED) {
+  Serial.print(".");
+  delay(300);
+  }
+  
+  Serial.println("\nYou're connected to the network");
+  Serial.println("Waiting for an ip address");
+  while (WiFi.localIP() == INADDR_NONE) {
+  Serial.print(".");
+  delay(300);
+  }
+
+  Serial.println("\nIP Address obtained");
+  printWifiStatus();
+  Serial.println("Starting webserver on port 80");
+  server.begin();                           
+  Serial.println("Webserver started!");
+}
+
+void loop() {
+ int i = 0;
+  Read_Temperature(); 
+  WiFiClient client = server.available();   
+  if (client) {                       
+    Serial.println("new client");     
+    char buffer[150] = {0};           
+    while (client.connected()) {           
+      if (client.available()) {            
+        char c = client.read();            
+        Serial.write(c);                   
+        if (c == '\n') {                   
+
+         
+          if (strlen(buffer) == 0) {
+           
+            client.println("HTTP/1.1 200 OK");
+            client.println("Content-type:text/html");
+            client.println();
+
+            
+            client.println("<html><head><title>IOT Sensor Web Server</title></head><body align=center>");
+            client.println("<h1 align=center><font color=\"red\">Welcome to the IOT  Sensor Web Server</font></h1>");
+            server.print("<p align=center><font color=\"green\">Click to check the status of sensor</font></p>");
+            server.print("<button onclick=\"location.href='/T'\">Temperature Sensor</button><br>");
+
+            
+            client.println();
+           
+            break;
+          }
+          else {      
+            memset(buffer, 0, 150);
+            i = 0;
+          }
+        }
+        else if (c != '\r') {    
+          buffer[i++] = c;      
+        }
+
+       
+        if (endsWith(buffer, "GET /T")) {
+          
+           client.println("<html>");
+                                                
+                                                client.println("<mark>");
+                                                client.println( "<h1 align=center>");
+                                                client.println("<mark>");
+                                                client.print("The Temperature Sensor Value:");
+                  				client.println(Temperature);
+                                                client.println("</marked>");
+                                                client.println("<br >");
+                                                server.println(" <button onclick=\"location.href='/T'\">Refresh</button><br><br>");
+                                                client.print("</h1>");
+                                                client.println("<html />");
+                                                
+                                                client.stop();
+                      
+        }
+      }
+    }
+    
+    client.stop();
+    Serial.println("client disonnected");
+  }
+}
+
+boolean endsWith(char* inString, char* compString) {
+  int compLength = strlen(compString);
+  int strLength = strlen(inString);
+  
+  //compare the last "compLength" values of the inString
+  int i;
+  for (i = 0; i < compLength; i++) {
+    char a = inString[(strLength - 1) - i];
+    char b = compString[(compLength - 1) - i];
+    if (a != b) {
+      return false;
+    }
+  }
+  return true;
+}
+
+void Read_Temperature(void)
+{
+  float analogValue; // create a variable to store the analog
+  	                      // reading
+  analogValue = analogRead(A0);//Read analog channel 3
+  float Tmv=(analogValue*3300)/4096;
+  Temperature= Tmv /10;
+}
+
+void printWifiStatus() {
+  // print the SSID of the network you're attached to:
+  Serial.print("SSID: ");
+  Serial.println(WiFi.SSID());
+
+  // print your WiFi IP address:
+  IPAddress ip = WiFi.localIP();
+  Serial.print("IP Address: ");
+  Serial.println(ip);
+
+  // print the received signal strength:
+  long rssi = WiFi.RSSI();
+  Serial.print("signal strength (RSSI):");
+  Serial.print(rssi);
+  Serial.println(" dBm");
+  // print where to go in a browser:
+  Serial.print("To see this page in action, open a browser to http://");
+  Serial.println(ip);
+}
